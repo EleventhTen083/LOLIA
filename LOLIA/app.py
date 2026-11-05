@@ -1,3 +1,5 @@
+import base64
+import os
 import sqlite3
 import uuid
 from datetime import datetime
@@ -329,120 +331,141 @@ col1, col2 = st.columns([1.2, 1])
 
 
 # ==========================================
-# 8. MODELO 3D DE SAMIRA (COLUMNA 1)
+# BUSCADOR AUTOMÁTICO DEL MODELO 3D
 # ==========================================
 
+rutas_posibles = [
+    os.path.join(os.path.dirname(__file__), "static", "samira.glb"),
+    os.path.join(os.path.dirname(__file__), "LOLIA", "static", "samira.glb"),
+    "static/samira.glb",
+    "LOLIA/static/samira.glb"
+]
+
+ruta_modelo = None
+for r in rutas_posibles:
+    if os.path.exists(r):
+        ruta_modelo = r
+        break
+
+data_url = ""
+if ruta_modelo:
+    with open(ruta_modelo, "rb") as f:
+        bytes_modelo = f.read()
+    b64_modelo = base64.b64encode(bytes_modelo).decode("utf-8")
+    data_url = f"data:model/gltf-binary;base64,{b64_modelo}"
+
 with col1:
-    st.subheader("🔥 Samira Soul Fighters 🔥 ")
+    st.subheader("🔥 Samira Soul Fighters 🔥")
 
-    components.html("""
-    <script type="module"
-    src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js">
-    </script>
+    if not data_url:
+        st.error("⚠️ No se encontró el archivo samira.glb. Revisa que esté dentro de la carpeta 'static' en GitHub.")
+    else:
+        components.html(f"""
+        <script type="module"
+        src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js">
+        </script>
 
-    <div style="
-        background: radial-gradient(circle, #542c37, #15101b);
-        border-radius: 20px;
-        padding: 12px;
-    ">
-        <model-viewer
-            id="samira"
-            src="static/samira.glb"
-            camera-controls
-            auto-rotate
-            autoplay
-            loop
-            shadow-intensity="1"
-            exposure="1"
-            style="width:100%; height:500px; background:transparent;">
-        </model-viewer>
+        <div style="
+            background: radial-gradient(circle, #542c37, #15101b);
+            border-radius: 20px;
+            padding: 12px;
+        ">
+            <model-viewer
+                id="samira"
+                src="{data_url}"
+                camera-controls
+                auto-rotate
+                autoplay
+                loop
+                shadow-intensity="1"
+                exposure="1"
+                style="width:100%; height:500px; background:transparent;">
+            </model-viewer>
 
-        <div style="padding:12px; color:white;">
-            <label for="animations">
-                ⚔️ Selecciona una animación:
-            </label>
-            <select id="animations" style="
-                width:100%;
-                padding:12px;
-                margin-top:10px;
-                border-radius:8px;
-                background:#29232f;
-                color:white;
-                border:1px solid #a34c5b;
-            ">
-                <option>Buscando animaciones...</option>
-            </select>
-
-            <div style="display:flex; gap:10px; margin-top:12px;">
-                <button id="play" style="
-                    flex:1;
+            <div style="padding:12px; color:white;">
+                <label for="animations">
+                    ⚔️ Selecciona una animación:
+                </label>
+                <select id="animations" style="
+                    width:100%;
                     padding:12px;
-                    background:#9d3048;
-                    color:white;
-                    border:0;
+                    margin-top:10px;
                     border-radius:8px;
-                    cursor:pointer;
-                ">▶ Reproducir</button>
+                    background:#29232f;
+                    color:white;
+                    border:1px solid #a34c5b;
+                ">
+                    <option>Buscando animaciones...</option>
+                </select>
 
-                <button id="pause" style="
-                    flex:1;
-                    padding:12px;
-                    background:#39313f;
-                    color:white;
-                    border:0;
-                    border-radius:8px;
-                    cursor:pointer;
-                ">⏸ Pausar</button>
+                <div style="display:flex; gap:10px; margin-top:12px;">
+                    <button id="play" style="
+                        flex:1;
+                        padding:12px;
+                        background:#9d3048;
+                        color:white;
+                        border:0;
+                        border-radius:8px;
+                        cursor:pointer;
+                    ">▶ Reproducir</button>
+
+                    <button id="pause" style="
+                        flex:1;
+                        padding:12px;
+                        background:#39313f;
+                        color:white;
+                        border:0;
+                        border-radius:8px;
+                        cursor:pointer;
+                    ">⏸ Pausar</button>
+                </div>
+
+                <p id="status" style="color:#ddd; font-size:13px;">
+                    Cargando modelo 3D...
+                </p>
             </div>
-
-            <p id="status" style="color:#ddd; font-size:13px;">
-                Cargando modelo 3D...
-            </p>
         </div>
-    </div>
 
-    <script>
-    const viewer = document.querySelector("#samira");
-    const selector = document.querySelector("#animations");
-    const status = document.querySelector("#status");
+        <script>
+        const viewer = document.querySelector("#samira");
+        const selector = document.querySelector("#animations");
+        const status = document.querySelector("#status");
 
-    viewer.addEventListener("load", () => {
-        const animations = viewer.availableAnimations;
-        selector.innerHTML = "";
-        if (animations.length === 0) {
-            selector.innerHTML = '<option>No se encontraron animaciones</option>';
-            status.textContent = "Tu modelo no contiene animaciones disponibles.";
-            return;
-        }
-        animations.forEach((animation) => {
-            const option = document.createElement("option");
-            option.value = animation;
-            option.textContent = animation;
-            selector.appendChild(option);
-        });
-        viewer.animationName = animations[0];
-        viewer.play();
-        status.textContent = "Animaciones encontradas: " + animations.length;
-    });
+        viewer.addEventListener("load", () => {{
+            const animations = viewer.availableAnimations;
+            selector.innerHTML = "";
+            if (animations.length === 0) {{
+                selector.innerHTML = '<option>No se encontraron animaciones</option>';
+                status.textContent = "Tu modelo no contiene animaciones disponibles.";
+                return;
+            }}
+            animations.forEach((animation) => {{
+                const option = document.createElement("option");
+                option.value = animation;
+                option.textContent = animation;
+                selector.appendChild(option);
+            }});
+            viewer.animationName = animations[0];
+            viewer.play();
+            status.textContent = "Animaciones encontradas: " + animations.length;
+        }});
 
-    selector.addEventListener("change", () => {
-        viewer.animationName = selector.value;
-        viewer.play();
-        status.textContent = "Reproduciendo: " + selector.value;
-    });
+        selector.addEventListener("change", () => {{
+            viewer.animationName = selector.value;
+            viewer.play();
+            status.textContent = "Reproduciendo: " + selector.value;
+        }});
 
-    document.querySelector("#play").addEventListener("click", () => {
-        viewer.play();
-    });
-    document.querySelector("#pause").addEventListener("click", () => {
-        viewer.pause();
-    });
-    </script>
-    """, height=730)
+        document.querySelector("#play").addEventListener("click", () => {{
+            viewer.play();
+        }});
+        document.querySelector("#pause").addEventListener("click", () => {{
+            viewer.pause();
+        }});
+        </script>
+        """, height=730)
 
     st.caption("Puedes girar, acercar y alejar el modelo de Samira.")
-
-
 # ==========================================
 # 9. CHAT CON SAMIRA (COLUMNA 2)
 # ==========================================
