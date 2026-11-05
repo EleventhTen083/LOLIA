@@ -182,7 +182,6 @@ if "conversacion_id" not in st.session_state:
         st.session_state.conversacion_id = crear_conversacion()
 
 if "messages" not in st.session_state:
-    # Sincronizamos con el historial de la base de datos si existe
     st.session_state.messages = obtener_historial(st.session_state.conversacion_id)
     if not st.session_state.messages:
         st.session_state.messages = []
@@ -267,8 +266,6 @@ Nunca abandones tu personalidad de Samira.
 
 def generar_respuesta(historial):
     cliente = obtener_cliente()
-
-    # Recuperar recuerdos personales (ahora ya está definida arriba)
     recuerdos = obtener_recuerdos()
 
     texto_recuerdos = "\n".join(
@@ -300,7 +297,7 @@ def generar_respuesta(historial):
     mensajes.extend(historial[-20:])
 
     respuesta = cliente.chat.completions.create(
-        model="openai/gpt-oss-120b", # O usa un modelo válido de Groq como llama-3.3-70b-versatile
+        model="openai/gpt-oss-120b",
         messages=mensajes,
         temperature=0.8,
         max_tokens=1024
@@ -466,6 +463,8 @@ with col1:
         """, height=730)
 
     st.caption("Puedes girar, acercar y alejar el modelo de Samira.")
+
+
 # ==========================================
 # 9. CHAT CON SAMIRA (COLUMNA 2)
 # ==========================================
@@ -503,6 +502,10 @@ with col2:
 
     # Entrada del chat única
     if prompt := st.chat_input("Escribe un mensaje a Samira... ⚔️"):
+        
+        # 🔊 FUNCIÓN DE AUDIO: Se reproduce al enviar el mensaje
+        st.audio("static/disparo.mp3", autoplay=True)
+
         # Guardar mensaje del usuario
         st.session_state.messages.append({
             "role": "user",
