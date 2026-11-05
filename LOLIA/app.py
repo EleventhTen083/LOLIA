@@ -1,0 +1,538 @@
+import sqlite3
+import uuid
+from datetime import datetime
+import streamlit as st
+import streamlit.components.v1 as components
+from groq import Groq
+
+# ==========================================
+# 1. CONFIGURACIÓN GENERAL
+# ==========================================
+
+st.set_page_config(
+    page_title="Samira - League of Legends",
+    page_icon="⚔️",
+    layout="wide"
+)
+
+st.title("⚔️ Samira - La Rosa del Desierto")
+
+st.write(
+    "¡Hey, invocador! Soy Samira. "
+    "La vida es una aventura, y yo nací para el espectáculo. "
+    "Pregúntame lo que quieras... ¡pero hazlo con estilo!"
+)
+
+# ==========================================
+# 2. ESTILO VISUAL
+# ==========================================
+
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(135deg, #100c18, #281522, #111827);
+    color: white;
+}
+
+.chat-title {
+    color: #e9b76b;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+[data-testid="stChatMessage"] {
+    background: rgba(120, 55, 70, 0.12);
+    border: 1px solid rgba(190, 100, 110, 0.15);
+    border-radius: 15px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+[data-testid="stChatInput"] {
+    border: 1px solid #a34c5b;
+    border-radius: 15px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+# ==========================================
+# 3. SISTEMA DE MEMORIA (BASE DE DATOS)
+# ==========================================
+
+DB_PATH = "loli_memoria.db"
+
+def conectar_db():
+    return sqlite3.connect(DB_PATH)
+
+def inicializar_memoria():
+    with conectar_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversaciones (
+                id TEXT PRIMARY KEY,
+                fecha TEXT
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mensajes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversacion_id TEXT,
+                rol TEXT,
+                contenido TEXT,
+                fecha TEXT,
+                FOREIGN KEY (conversacion_id)
+                REFERENCES conversaciones(id)
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS recuerdos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                categoria TEXT,
+                contenido TEXT UNIQUE,
+                fecha TEXT
+            )
+        """)
+        conn.commit()
+
+def crear_conversacion():
+    identificador = str(uuid.uuid4())
+    with conectar_db() as conn:
+        conn.execute("""
+            INSERT INTO conversaciones (id, fecha)
+            VALUES (?, ?)
+        """, (identificador, datetime.now().isoformat()))
+    return identificador
+
+def guardar_mensaje(conversacion_id, rol, contenido):
+    with conectar_db() as conn:
+        conn.execute("""
+            INSERT INTO mensajes
+            (conversacion_id, rol, contenido, fecha)
+            VALUES (?, ?, ?, ?)
+        """, (
+            conversacion_id,
+            rol,
+            contenido,
+            datetime.now().isoformat()
+        ))
+
+def obtener_historial(conversacion_id):
+    with conectar_db() as conn:
+        cursor = conn.execute("""
+            SELECT rol, contenido
+            FROM mensajes
+            WHERE conversacion_id = ?
+            ORDER BY id ASC
+        """, (conversacion_id,))
+        return [
+            {"role": rol, "content": contenido}
+            for rol, contenido in cursor.fetchall()
+        ]
+
+def guardar_recuerdo(categoria, contenido):
+    with conectar_db() as conn:
+        conn.execute("""
+            INSERT OR IGNORE INTO recuerdos
+            (categoria, contenido, fecha)
+            VALUES (?, ?, ?)
+        """, (
+            categoria,
+            contenido,
+            datetime.now().isoformat()
+        ))
+
+def obtener_recuerdos():
+    with conectar_db() as conn:
+        cursor = conn.execute("""
+            SELECT categoria, contenido
+            FROM recuerdos
+            ORDER BY id DESC
+        """)
+        return cursor.fetchall()
+
+def eliminar_recuerdo(contenido):
+    with conectar_db() as conn:
+        conn.execute("""
+            DELETE FROM recuerdos
+            WHERE contenido = ?
+        """, (contenido,))
+
+def obtener_ultima_conversacion():
+    with conectar_db() as conn:
+        cursor = conn.execute("""
+            SELECT id
+            FROM conversaciones
+            ORDER BY fecha DESC
+            LIMIT 1
+        """)
+        resultado = cursor.fetchone()
+        return resultado[0] if resultado else None
+
+# Inicializar base de datos y estados
+inicializar_memoria()
+
+if "conversacion_id" not in st.session_state:
+    ultima = obtener_ultima_conversacion()
+    if ultima:
+        st.session_state.conversacion_id = ultima
+    else:
+        st.session_state.conversacion_id = crear_conversacion()
+
+if "messages" not in st.session_state:
+    # Sincronizamos con el historial de la base de datos si existe
+    st.session_state.messages = obtener_historial(st.session_state.conversacion_id)
+    if not st.session_state.messages:
+        st.session_state.messages = []
+
+
+# ==========================================
+# 4. CONEXIÓN CON GROQ
+# ==========================================
+
+@st.cache_resource
+def obtener_cliente():
+    return Groq(
+        api_key=st.secrets["GROQ_API_KEY"]
+    )
+
+
+# ==========================================
+# 5. PERSONALIDAD DE SAMIRA
+# ==========================================
+
+INSTRUCCIONES = """
+Eres Samira, la Rosa del Desierto de League of Legends.
+
+PERSONALIDAD:
+- Eres atrevida, segura de ti misma y competitiva.
+- Tienes un carácter desafiante y divertido.
+- Te encantan las aventuras y los combates.
+- Hablas en español.
+- Utilizas expresiones propias de Samira.
+- Puedes utilizar emojis como ⚔️🔥😎.
+
+COMPORTAMIENTO:
+- Responde de manera natural y conversacional.
+- Recuerda el contexto de la conversación.
+- Responde preguntas sobre League of Legends.
+- Explica estrategias, campeones, objetos y habilidades.
+- También puedes conversar sobre otros temas.
+- Si no sabes algo, dilo honestamente.
+- No repitas siempre las mismas frases.
+- Mantén respuestas claras y entretenidas.
+
+REGLAS DE ORTOGRAFÍA Y COMPRENSIÓN:
+
+-Comprende las solicitudes aunque tengan errores ortográficos,
+palabras incompletas, abreviaciones o falten acentos.
+-Interpreta correctamente las preguntas aunque el usuario no utilice los signos de interrogación iniciales y finales.
+-No rechaces una solicitud únicamente por tener errores de escritura o puntuación.
+-Responde siempre con buena ortografía, utilizando correctamente acentos, comas, puntos y signos de interrogación.
+-Cuando respondas una pregunta, utiliza los signos de interrogación correspondientes: ¿...?
+7. Si una solicitud es demasiado ambigua para comprenderla,
+   pregunta con tu personalidad qué quiso decir.
+
+REGLAS DE ESCRITURA:
+
+Antes de responder cualquier solicitud, verifica que el mensaje
+del usuario tenga una escritura adecuada.
+
+Comprueba:
+- Ortografía y acentuación.
+- Uso de mayúsculas.
+- Signos de interrogación (¿?).
+- Signos de exclamación (¡!).
+- Puntuación básica.
+
+Si el usuario escribe una pregunta sin los signos de interrogación,
+tiene errores ortográficos o presenta una redacción incorrecta:
+
+1. No respondas todavía la pregunta.
+2. Indica con tu personalidad que debe corregir su escritura.
+3. Muestra un ejemplo de cómo debería escribirla.
+4. Espera a que el usuario envíe nuevamente su mensaje corregido.
+
+No exijas una escritura perfecta ni rechaces abreviaciones
+que no afecten la comprensión.
+Nunca abandones tu personalidad de Samira.
+"""
+
+
+# ==========================================
+# 6. FUNCIÓN DE INTELIGENCIA ARTIFICIAL
+# ==========================================
+
+def generar_respuesta(historial):
+    cliente = obtener_cliente()
+
+    # Recuperar recuerdos personales (ahora ya está definida arriba)
+    recuerdos = obtener_recuerdos()
+
+    texto_recuerdos = "\n".join(
+        [f"- {categoria}: {contenido}"
+         for categoria, contenido in recuerdos]
+    )
+
+    if not texto_recuerdos:
+        texto_recuerdos = "Todavía no hay recuerdos guardados."
+
+    instrucciones_memoria = f"""
+    {INSTRUCCIONES}
+
+    MEMORIA PERSONAL DEL USUARIO:
+    Estos son los recuerdos almacenados de conversaciones anteriores:
+    {texto_recuerdos}
+
+    Utiliza esta información cuando sea relevante.
+    No inventes recuerdos ni afirmes conocer datos que no aparecen aquí.
+    """
+
+    mensajes = [
+        {
+            "role": "system",
+            "content": instrucciones_memoria
+        }
+    ]
+
+    mensajes.extend(historial[-20:])
+
+    respuesta = cliente.chat.completions.create(
+        model="openai/gpt-oss-120b", # O usa un modelo válido de Groq como llama-3.3-70b-versatile
+        messages=mensajes,
+        temperature=0.8,
+        max_tokens=1024
+    )
+
+    return respuesta.choices[0].message.content
+
+
+def procesar_recuerdo(texto):
+    texto = texto.strip()
+    prefijo = "recuerda que"
+    if texto.lower().startswith(prefijo):
+        contenido = texto[len(prefijo):].strip()
+        if contenido:
+            guardar_recuerdo("Información personal", contenido)
+            return (
+                "¡Entendido! He guardado ese recuerdo "
+                "en mi memoria, recluta. No se me escapará."
+            )
+    return None
+
+
+# ==========================================
+# 7. DISTRIBUCIÓN DE LA INTERFAZ
+# ==========================================
+
+col1, col2 = st.columns([1.2, 1])
+
+
+# ==========================================
+# 8. MODELO 3D DE SAMIRA (COLUMNA 1)
+# ==========================================
+
+with col1:
+    st.subheader("🔥 Samira Soul Fighters 🔥 ")
+
+    components.html("""
+    <script type="module"
+    src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js">
+    </script>
+
+    <div style="
+        background: radial-gradient(circle, #542c37, #15101b);
+        border-radius: 20px;
+        padding: 12px;
+    ">
+        <model-viewer
+            id="samira"
+            src="/app/static/samira.glb"
+            camera-controls
+            auto-rotate
+            autoplay
+            loop
+            shadow-intensity="1"
+            exposure="1"
+            style="width:100%; height:500px; background:transparent;">
+        </model-viewer>
+
+        <div style="padding:12px; color:white;">
+            <label for="animations">
+                ⚔️ Selecciona una animación:
+            </label>
+            <select id="animations" style="
+                width:100%;
+                padding:12px;
+                margin-top:10px;
+                border-radius:8px;
+                background:#29232f;
+                color:white;
+                border:1px solid #a34c5b;
+            ">
+                <option>Buscando animaciones...</option>
+            </select>
+
+            <div style="display:flex; gap:10px; margin-top:12px;">
+                <button id="play" style="
+                    flex:1;
+                    padding:12px;
+                    background:#9d3048;
+                    color:white;
+                    border:0;
+                    border-radius:8px;
+                    cursor:pointer;
+                ">▶ Reproducir</button>
+
+                <button id="pause" style="
+                    flex:1;
+                    padding:12px;
+                    background:#39313f;
+                    color:white;
+                    border:0;
+                    border-radius:8px;
+                    cursor:pointer;
+                ">⏸ Pausar</button>
+            </div>
+
+            <p id="status" style="color:#ddd; font-size:13px;">
+                Cargando modelo 3D...
+            </p>
+        </div>
+    </div>
+
+    <script>
+    const viewer = document.querySelector("#samira");
+    const selector = document.querySelector("#animations");
+    const status = document.querySelector("#status");
+
+    viewer.addEventListener("load", () => {
+        const animations = viewer.availableAnimations;
+        selector.innerHTML = "";
+        if (animations.length === 0) {
+            selector.innerHTML = '<option>No se encontraron animaciones</option>';
+            status.textContent = "Tu modelo no contiene animaciones disponibles.";
+            return;
+        }
+        animations.forEach((animation) => {
+            const option = document.createElement("option");
+            option.value = animation;
+            option.textContent = animation;
+            selector.appendChild(option);
+        });
+        viewer.animationName = animations[0];
+        viewer.play();
+        status.textContent = "Animaciones encontradas: " + animations.length;
+    });
+
+    selector.addEventListener("change", () => {
+        viewer.animationName = selector.value;
+        viewer.play();
+        status.textContent = "Reproduciendo: " + selector.value;
+    });
+
+    document.querySelector("#play").addEventListener("click", () => {
+        viewer.play();
+    });
+    document.querySelector("#pause").addEventListener("click", () => {
+        viewer.pause();
+    });
+    </script>
+    """, height=730)
+
+    st.caption("Puedes girar, acercar y alejar el modelo de Samira.")
+
+
+# ==========================================
+# 9. CHAT CON SAMIRA (COLUMNA 2)
+# ==========================================
+
+with col2:
+    st.subheader("💬 Habla con Samira")
+    st.markdown(
+        '<div class="chat-title">'
+        '⚔️ Conversación privada con la Rosa del Desierto'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    col_title, col_clear = st.columns([3, 1])
+    with col_title:
+        st.caption("🟢 Samira está lista para hablar")
+    with col_clear:
+        if st.button("🗑️ Limpiar", key="clear_chat"):
+            st.session_state.messages = []
+            st.rerun()
+
+    # Mostrar historial dentro de un contenedor
+    with st.container(height=420, border=True):
+        if not st.session_state.messages:
+            with st.chat_message("assistant", avatar="⚔️"):
+                st.markdown(
+                    "**Samira:** ¡Ja! Bienvenido, invocador. "
+                    "¿Qué aventura nos espera hoy? 🔥"
+                )
+
+        for message in st.session_state.messages:
+            avatar = "⚔️" if message["role"] == "assistant" else "🧑"
+            with st.chat_message(message["role"], avatar=avatar):
+                st.markdown(message["content"])
+
+    # Entrada del chat única
+    if prompt := st.chat_input("Escribe un mensaje a Samira... ⚔️"):
+        # Guardar mensaje del usuario
+        st.session_state.messages.append({
+            "role": "user",
+            "content": prompt
+        })
+        guardar_mensaje(st.session_state.conversacion_id, "user", prompt)
+
+        with st.chat_message("user", avatar="🧑"):
+            st.markdown(prompt)
+
+        try:
+            # Comprobar si el usuario quiere guardar un recuerdo
+            recuerdo_respuesta = procesar_recuerdo(prompt)
+
+            with st.chat_message("assistant", avatar="⚔️"):
+                if recuerdo_respuesta:
+                    respuesta = recuerdo_respuesta
+                    st.markdown(respuesta)
+                else:
+                    with st.spinner("Samira está pensando..."):
+                        response = generar_respuesta(st.session_state.messages)
+                    
+                    respuesta = st.write_stream(
+                        (palabra + " " for palabra in response.split())
+                    )
+
+            # Guardar respuesta de Samira
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": respuesta
+            })
+            guardar_mensaje(st.session_state.conversacion_id, "assistant", respuesta)
+
+        except Exception as e:
+            st.error(f"Error de conexión con la IA: {e}")
+            st.info("Revisa tu API Key, tu conexión y la configuración de Groq.")
+
+
+# ==========================================
+# 10. SIDEBAR - MEMORIA Y RECUERDOS
+# ==========================================
+
+with st.sidebar:
+    st.subheader("🧠 Memoria de LOLI.AI")
+    recuerdos = obtener_recuerdos()
+
+    if recuerdos:
+        for categoria, contenido in recuerdos:
+            st.write(f"**{categoria}**")
+            st.caption(contenido)
+
+            if st.button("Eliminar recuerdo", key=f"eliminar_{contenido}"):
+                eliminar_recuerdo(contenido)
+                st.rerun()
+    else:
+        st.info("Todavía no tengo recuerdos.")
