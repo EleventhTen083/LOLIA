@@ -464,6 +464,72 @@ with col1:
 
     st.caption("Puedes girar, acercar y alejar el modelo de Samira.")
 
+    # ==========================================
+    # NUEVO: ZONA INTERACTIVA CON LÍMITES
+    # ==========================================
+    st.markdown("### 🗺️ Zona de Entrenamiento")
+    
+    components.html("""
+    <div id="game-container" style="
+        width: 100%; 
+        height: 250px; 
+        background: #15101b; 
+        border-radius: 15px; 
+        position: relative; 
+        overflow: hidden;
+        border: 2px solid #a34c5b;
+    ">
+        <div id="player" style="
+            width: 35px; 
+            height: 35px; 
+            background: #9d3048; 
+            border-radius: 50%; 
+            position: absolute; 
+            left: 140px; 
+            top: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        ">⚔️</div>
+    </div>
+
+    <p style="color: #ddd; font-size: 12px; text-align: center; margin-top: 6px;">
+        Usa las teclas <b>W, A, S, D</b> para moverte dentro del área delimitada.
+    </p>
+
+    <script>
+    const player = document.getElementById('player');
+    const container = document.getElementById('game-container');
+
+    let posX = 140;
+    let posY = 100;
+    const velocidad = 10;
+    const playerSize = 35;
+
+    document.addEventListener('keydown', (e) => {
+        if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
+            e.preventDefault();
+        }
+
+        if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') posY -= velocidad;
+        if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') posY += velocidad;
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') posX -= velocidad;
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') posX += velocidad;
+
+        const maxW = container.clientWidth - playerSize;
+        const maxH = container.clientHeight - playerSize;
+
+        posX = Math.max(0, Math.min(maxW, posX));
+        posY = Math.max(0, Math.min(maxH, posY));
+
+        player.style.left = posX + 'px';
+        player.style.top = posY + 'px';
+    });
+    </script>
+    """, height=330)
+
 
 # ==========================================
 # 9. CHAT CON SAMIRA (COLUMNA 2)
@@ -500,7 +566,7 @@ with col2:
             with st.chat_message(message["role"], avatar=avatar):
                 st.markdown(message["content"])
 
-   # Entrada del chat única
+    # Entrada del chat única
     if prompt := st.chat_input("Escribe un mensaje a Samira... ⚔️"):
         
         # 🔊 BUSCADOR AUTOMÁTICO DE AUDIO SEGURO
@@ -576,5 +642,3 @@ with st.sidebar:
                 st.rerun()
     else:
         st.info("Todavía no tengo recuerdos.")
-
-
