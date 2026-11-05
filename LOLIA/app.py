@@ -500,11 +500,25 @@ with col2:
             with st.chat_message(message["role"], avatar=avatar):
                 st.markdown(message["content"])
 
-    # Entrada del chat única
+   # Entrada del chat única
     if prompt := st.chat_input("Escribe un mensaje a Samira... ⚔️"):
         
-        # 🔊 FUNCIÓN DE AUDIO: Se reproduce al enviar el mensaje
-        st.audio("static/samira_passive_lol.mp3", autoplay=True)
+        # 🔊 BUSCADOR AUTOMÁTICO DE AUDIO SEGURO
+        rutas_audio_posibles = [
+            "static/samira_passive_lol.mp3",
+            "LOLIA/static/samira_passive_lol.mp3",
+            os.path.join(os.path.dirname(__file__), "static", "samira_passive_lol.mp3"),
+            os.path.join(os.path.dirname(__file__), "LOLIA", "static", "samira_passive_lol.mp3")
+        ]
+        
+        ruta_audio_encontrada = None
+        for r in rutas_audio_posibles:
+            if os.path.exists(r):
+                ruta_audio_encontrada = r
+                break
+                
+        if ruta_audio_encontrada:
+            st.audio(ruta_audio_encontrada, autoplay=True)
 
         # Guardar mensaje del usuario
         st.session_state.messages.append({
