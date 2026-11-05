@@ -347,7 +347,7 @@ with col1:
     ">
         <model-viewer
             id="samira"
-            src="/app/static/samira.glb"
+            src="static/samira.glb"
             camera-controls
             auto-rotate
             autoplay
