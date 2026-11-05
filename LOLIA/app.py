@@ -465,70 +465,136 @@ with col1:
     st.caption("Puedes girar, acercar y alejar el modelo de Samira.")
 
     # ==========================================
-    # NUEVO: ZONA INTERACTIVA CON LÍMITES
+    # NUEVO: ENTORNO 3D CON EL MODELO DE SAMIRA Y LÍMITES
     # ==========================================
-    st.markdown("### 🗺️ Zona de Entrenamiento")
+    st.markdown("### 🏟️ Arena 3D de Samira")
     
-    components.html("""
-    <div id="game-container" style="
-        width: 100%; 
-        height: 250px; 
-        background: #15101b; 
-        border-radius: 15px; 
-        position: relative; 
-        overflow: hidden;
-        border: 2px solid #a34c5b;
-    ">
-        <div id="player" style="
-            width: 35px; 
-            height: 35px; 
-            background: #9d3048; 
-            border-radius: 50%; 
-            position: absolute; 
-            left: 140px; 
-            top: 100px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 14px;
-        ">⚔️</div>
-    </div>
+    if not data_url:
+        st.warning("No se pudo cargar a Samira en la arena porque no se encontró el modelo .glb")
+    else:
+        components.html(f"""
+        <!-- Carga de Three.js y GLTFLoader -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+        
+        <div id="canvas-3d" style="
+            width: 100%; 
+            height: 320px; 
+            border-radius: 15px; 
+            overflow: hidden;
+            border: 2px solid #a34c5b;
+        "></div>
 
-    <p style="color: #ddd; font-size: 12px; text-align: center; margin-top: 6px;">
-        Usa las teclas <b>W, A, S, D</b> para moverte dentro del área delimitada.
-    </p>
+        <p style="color: #ddd; font-size: 12px; text-align: center; margin-top: 6px;">
+            Usa <b>W, A, S, D</b> para mover a Samira en el espacio 3D. ¡Estás limitado por las paredes!
+        </p>
 
-    <script>
-    const player = document.getElementById('player');
-    const container = document.getElementById('game-container');
+        <script>
+        // 1. Escena y Cámara
+        const container = document.getElementById('canvas-3d');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x15101b);
 
-    let posX = 140;
-    let posY = 100;
-    const velocidad = 10;
-    const playerSize = 35;
+        const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(0, 6, 10);
+        camera.lookAt(0, 1, 0);
 
-    document.addEventListener('keydown', (e) => {
-        if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
-            e.preventDefault();
-        }
+        const renderer = new THREE.WebGLRenderer({{ antialias: true }});
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
 
-        if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') posY -= velocidad;
-        if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') posY += velocidad;
-        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') posX -= velocidad;
-        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') posX += velocidad;
+        // 2. Iluminación
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        scene.add(ambientLight);
 
-        const maxW = container.clientWidth - playerSize;
-        const maxH = container.clientHeight - playerSize;
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
 
-        posX = Math.max(0, Math.min(maxW, posX));
-        posY = Math.max(0, Math.min(maxH, posY));
+        // 3. Arena y Límites Visuales
+        const arenaSize = 12;
+        const floorGeo = new THREE.PlaneGeometry(arenaSize, arenaSize);
+        const floorMat = new THREE.MeshStandardMaterial({{ color: 0x281522, roughness: 0.6 }});
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
 
-        player.style.left = posX + 'px';
-        player.style.top = posY + 'px';
-    });
-    </script>
-    """, height=330)
+        // Paredes del borde (límites)
+        const borderGeo = new THREE.BoxGeometry(arenaSize, 0.4, 0.2);
+        const borderMat = new THREE.MeshBasicMaterial({{ color: 0xa34c5b }});
+        
+        const wall1 = new THREE.Mesh(borderGeo, borderMat);
+        wall1.position.set(0, 0.2, -arenaSize/2);
+        scene.add(wall1);
+
+        const wall2 = new THREE.Mesh(borderGeo, borderMat);
+        wall2.position.set(0, 0.2, arenaSize/2);
+        scene.add(wall2);
+
+        // 4. Cargar el Modelo .glb de Samira
+        let player = null;
+        let mixer = null;
+        const loader = new THREE.GLTFLoader();
+
+        loader.load('{data_url}', (gltf) => {{
+            player = gltf.scene;
+            
+            // Ajustar la escala si el modelo es muy grande/pequeño
+            player.scale.set(1.5, 1.5, 1.5);
+            player.position.set(0, 0, 0);
+            scene.add(player);
+
+            // Si el modelo contiene animaciones, reproducir la primera
+            if (gltf.animations && gltf.animations.length > 0) {{
+                mixer = new THREE.AnimationMixer(player);
+                const action = mixer.clipAction(gltf.animations[0]);
+                action.play();
+            }}
+        }});
+
+        // 5. Controles de Movimiento y Física de Límites
+        const keys = {{ w: false, a: false, s: false, d: false }};
+        const speed = 0.1;
+        const limit = (arenaSize / 2) - 0.8;
+        const clock = new THREE.Clock();
+
+        window.addEventListener('keydown', (e) => {{
+            if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.w = true;
+            if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.s = true;
+            if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.a = true;
+            if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.d = true;
+        }});
+
+        window.addEventListener('keyup', (e) => {{
+            if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.w = false;
+            if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.s = false;
+            if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.a = false;
+            if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.d = false;
+        }});
+
+        // Bucle de Animación
+        function animate() {{
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+
+            if (player) {{
+                if (keys.w) {{ player.position.z -= speed; player.rotation.y = Math.PI; }}
+                if (keys.s) {{ player.position.z += speed; player.rotation.y = 0; }}
+                if (keys.a) {{ player.position.x -= speed; player.rotation.y = -Math.PI / 2; }}
+                if (keys.d) {{ player.position.x += speed; player.rotation.y = Math.PI / 2; }}
+
+                // Restricción estricta de límites (paredes transparentes/físicas)
+                player.position.x = Math.max(-limit, Math.min(limit, player.position.x));
+                player.position.z = Math.max(-limit, Math.min(limit, player.position.z));
+            }}
+
+            renderer.render(scene, camera);
+        }}
+        animate();
+        </script>
+        """, height=380)
 
 
 # ==========================================
