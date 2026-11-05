@@ -504,7 +504,7 @@ with col2:
     if prompt := st.chat_input("Escribe un mensaje a Samira... ⚔️"):
         
         # 🔊 FUNCIÓN DE AUDIO: Se reproduce al enviar el mensaje
-        st.audio("static/disparo.mp3", autoplay=True)
+        st.audio("static/samira_passive_lol.mp3", autoplay=True)
 
         # Guardar mensaje del usuario
         st.session_state.messages.append({
