@@ -576,3 +576,67 @@ with st.sidebar:
                 st.rerun()
     else:
         st.info("Todavía no tengo recuerdos.")
+
+
+<div id="game-container" style="
+    width: 100%; 
+    height: 400px; 
+    background: #15101b; 
+    border-radius: 15px; 
+    position: relative; 
+    overflow: hidden;
+    border: 2px solid #a34c5b;
+">
+    <!-- Personaje o elemento que se mueve -->
+    <div id="player" style="
+        width: 40px; 
+        height: 40px; 
+        background: #9d3048; 
+        border-radius: 50%; 
+        position: absolute; 
+        left: 180px; 
+        top: 180px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    ">⚔️</div>
+</div>
+
+<p style="color: #ddd; font-size: 13px; text-align: center; margin-top: 8px;">
+    Usa las teclas <b>W, A, S, D</b> o las flechas del teclado para moverte dentro del límite.
+</p>
+
+<script>
+const player = document.getElementById('player');
+const container = document.getElementById('game-container');
+
+// Posición inicial
+let posX = 180;
+let posY = 180;
+const velocidad = 10;
+
+// Dimensiones del contenedor y del jugador para calcular los límites exactos
+const containerWidth = container.clientWidth;
+const containerHeight = container.clientHeight;
+const playerSize = 40; // Ancho/alto del div del jugador
+
+document.addEventListener('keydown', (e) => {
+    // Detectar movimiento
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') posY -= velocidad;
+    if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') posY += velocidad;
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') posX -= velocidad;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') posX += velocidad;
+
+    // APLICAR LÍMITES (Márgenes de la caja)
+    // Math.max evita que baje de 0 (borde izquierdo/superior)
+    // Math.min evita que pase del tamaño máximo del contenedor menos el tamaño del objeto
+    posX = Math.max(0, Math.min(containerWidth - playerSize, posX));
+    posY = Math.max(0, Math.min(containerHeight - playerSize, posY));
+
+    // Actualizar la posición en pantalla
+    player.style.left = posX + 'px';
+    player.style.top = posY + 'px';
+});
+</script>
