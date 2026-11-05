@@ -347,7 +347,7 @@ with col1:
     ">
         <model-viewer
             id="samira"
-            src="https://github.com/EleventhTen083/LOLIA/releases/download/lol/samira.glb"
+            src="static/samira.glb"
             camera-controls
             auto-rotate
             autoplay
