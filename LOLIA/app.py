@@ -6,11 +6,31 @@ from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
+from zoneinfo import ZoneInfo
 
 # ==========================================
 # 1. CONFIGURACIÓN GENERAL
 # ==========================================
+# ==========================================
+# HORA LOCAL DE SAMIRA
+# ==========================================
 
+def obtener_hora_mexico():
+    return datetime.now(ZoneInfo("America/Mexico_City"))
+
+
+def obtener_saludo():
+    hora_actual = obtener_hora_mexico().hour
+
+    if 5 <= hora_actual < 12:
+        return "Buenos días ☀️"
+
+    elif 12 <= hora_actual < 19:
+        return "Buenas tardes 🌤️"
+
+    else:
+        return "Buenas noches 🌙"
+        
 st.set_page_config(
     page_title="Samira - League of Legends",
     page_icon="⚔️",
@@ -261,9 +281,15 @@ COMPORTAMIENTO:
 - Si no sabes algo, dilo honestamente.
 - No repitas siempre las mismas frases.
 - Mantén respuestas claras y entretenidas.
-
-REGLAS DE ORTOGRAFÍA Y COMPRENSIÓN:
--Dependiendo de la hora del dia saluda conforme lo es si es de dia o de noche. 
+SALUDOS:
+- Utiliza el saludo que el sistema te proporciona.
+- No inventes la hora ni cambies el saludo proporcionado.
+- No saludes con buenas noches durante el día.
+- Si ya saludaste al usuario en la conversación,
+  no repitas el saludo en cada respuesta.
+  
+REGLAS DE ORTOGRAFÍA Y COMPRENSIÓN:. 
+-Dependiendo de la hora del dia saluda conforme lo es si es de dia o de noche.
 -Comprende las solicitudes aunque tengan errores ortográficos,
 palabras incompletas, abreviaciones o falten acentos.
 -Interpreta correctamente las preguntas aunque el usuario no utilice los signos de interrogación iniciales y finales.
@@ -311,6 +337,8 @@ def generar_respuesta(historial):
     cliente = obtener_cliente()
     recuerdos = obtener_recuerdos()
 
+    saludo_actual = obtener_saludo()
+
     texto_recuerdos = "\n".join(
         [f"- {categoria}: {contenido}"
          for categoria, contenido in recuerdos]
@@ -321,7 +349,25 @@ def generar_respuesta(historial):
 
     instrucciones_memoria = f"""
     {INSTRUCCIONES}
+    HORA ACTUAL Y SALUDO:
+    La hora local del sistema es:
+    {obtener_hora_mexico().strftime("%H:%M")}
 
+    El saludo correspondiente es:
+    {saludo_actual}
+
+    Si es el primer mensaje de la conversación,
+    utiliza este saludo al dar la bienvenida.
+
+    No inventes otro saludo según la hora.
+
+    MEMORIA PERSONAL DEL USUARIO:
+    Estos son los recuerdos almacenados de conversaciones anteriores:
+    {texto_recuerdos}
+
+    Utiliza esta información cuando sea relevante.
+    No inventes recuerdos ni afirmes conocer datos que no aparecen aquí.
+    """
     MEMORIA PERSONAL DEL USUARIO:
     Estos son los recuerdos almacenados de conversaciones anteriores:
     {texto_recuerdos}
