@@ -263,7 +263,7 @@ COMPORTAMIENTO:
 - Mantén respuestas claras y entretenidas.
 
 REGLAS DE ORTOGRAFÍA Y COMPRENSIÓN:
-
+-Dependiendo de la hora del dia saluda conforme lo es si es de dia o de noche. 
 -Comprende las solicitudes aunque tengan errores ortográficos,
 palabras incompletas, abreviaciones o falten acentos.
 -Interpreta correctamente las preguntas aunque el usuario no utilice los signos de interrogación iniciales y finales.
