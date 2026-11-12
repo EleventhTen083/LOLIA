@@ -31,29 +31,68 @@ st.write(
 
 st.markdown("""
 <style>
+
+/* FONDO GENERAL */
 .stApp {
     background: linear-gradient(135deg, #100c18, #281522, #111827);
-    color: white;
+    color: #ffffff !important;
 }
 
+/* TÍTULO DEL CHAT */
 .chat-title {
-    color: #e9b76b;
+    color: #e9b76b !important;
     font-size: 14px;
     margin-bottom: 10px;
 }
 
+/* MENSAJES DEL CHAT */
 [data-testid="stChatMessage"] {
-    background: rgba(120, 55, 70, 0.12);
-    border: 1px solid rgba(190, 100, 110, 0.15);
+    background: rgba(120, 55, 70, 0.20) !important;
+    border: 1px solid rgba(190, 100, 110, 0.25);
     border-radius: 15px;
     padding: 12px;
     margin-bottom: 12px;
 }
 
-[data-testid="stChatInput"] {
-    border: 1px solid #a34c5b;
-    border-radius: 15px;
+/* TEXTO DE LOS MENSAJES */
+[data-testid="stChatMessage"] p,
+[data-testid="stChatMessage"] li,
+[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {
+    color: #ffffff !important;
 }
+
+/* CAMPO DONDE ESCRIBES */
+[data-testid="stChatInput"] textarea {
+    color: #222222 !important;
+    -webkit-text-fill-color: #222222 !important;
+    caret-color: #a34c5b !important;
+    background-color: #ffffff !important;
+}
+
+/* TEXTO DE EJEMPLO DEL CAMPO */
+[data-testid="stChatInput"] textarea::placeholder {
+    color: #777777 !important;
+    -webkit-text-fill-color: #777777 !important;
+    opacity: 1 !important;
+}
+
+/* BORDE DEL CAMPO */
+[data-testid="stChatInput"] {
+    border: 1px solid #a34c5b !important;
+    border-radius: 15px !important;
+}
+
+/* TEXTO SELECCIONADO */
+::selection {
+    background: #a83250;
+    color: #ffffff;
+}
+
+/* SIDEBAR */
+[data-testid="stSidebar"] {
+    color: #ffffff !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -249,10 +288,14 @@ Comprueba:
 Si el usuario escribe una pregunta sin los signos de interrogación,
 tiene errores ortográficos o presenta una redacción incorrecta:
 
+Si el usuario escribe una pregunta que no es sobre League of legends no respondas
+e indicale que eso no es informacion sobre league of legends 
+
 1. No respondas todavía la pregunta.
 2. Indica con tu personalidad que debe corregir su escritura.
 3. Muestra un ejemplo de cómo debería escribirla.
 4. Espera a que el usuario envíe nuevamente su mensaje corregido.
+
 
 No exijas una escritura perfecta ni rechaces abreviaciones
 que no afecten la comprensión.
