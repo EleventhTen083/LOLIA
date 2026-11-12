@@ -288,8 +288,7 @@ SALUDOS:
 - Si ya saludaste al usuario en la conversación,
   no repitas el saludo en cada respuesta.
   
-REGLAS DE ORTOGRAFÍA Y COMPRENSIÓN:. 
--Dependiendo de la hora del dia saluda conforme lo es si es de dia o de noche.
+REGLAS DE ORTOGRAFÍA Y COMPRENSIÓN:
 -Comprende las solicitudes aunque tengan errores ortográficos,
 palabras incompletas, abreviaciones o falten acentos.
 -Interpreta correctamente las preguntas aunque el usuario no utilice los signos de interrogación iniciales y finales.
@@ -333,6 +332,7 @@ Nunca abandones tu personalidad de Samira.
 # 6. FUNCIÓN DE INTELIGENCIA ARTIFICIAL
 # ==========================================
 
+
 def generar_respuesta(historial):
     cliente = obtener_cliente()
     recuerdos = obtener_recuerdos()
@@ -349,8 +349,9 @@ def generar_respuesta(historial):
 
     instrucciones_memoria = f"""
     {INSTRUCCIONES}
+
     HORA ACTUAL Y SALUDO:
-    La hora local del sistema es:
+    La hora local de México es:
     {obtener_hora_mexico().strftime("%H:%M")}
 
     El saludo correspondiente es:
@@ -361,13 +362,6 @@ def generar_respuesta(historial):
 
     No inventes otro saludo según la hora.
 
-    MEMORIA PERSONAL DEL USUARIO:
-    Estos son los recuerdos almacenados de conversaciones anteriores:
-    {texto_recuerdos}
-
-    Utiliza esta información cuando sea relevante.
-    No inventes recuerdos ni afirmes conocer datos que no aparecen aquí.
-    """
     MEMORIA PERSONAL DEL USUARIO:
     Estos son los recuerdos almacenados de conversaciones anteriores:
     {texto_recuerdos}
@@ -393,6 +387,7 @@ def generar_respuesta(historial):
     )
 
     return respuesta.choices[0].message.content
+
 
 
 def procesar_recuerdo(texto):
